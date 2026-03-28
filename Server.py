@@ -114,20 +114,15 @@ def screenshot_png() -> Tuple[str, str]:
     return "ok", encoded
 
 
-def webcam_capture() -> Tuple[str, str]:
+def webcam_open() -> Tuple[str, str]:
     if cv2 is None:
         return "error", "opencv-python not installed"
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         return "error", "cannot open webcam"
-    ret, frame = cap.read()
     cap.release()
-    if not ret:
-        return "error", "failed to capture frame"
-    ret, buf = cv2.imencode(".jpg", frame)
-    if not ret:
-        return "error", "encode failure"
-    return "ok", base64.b64encode(buf.tobytes()).decode("ascii")
+
+    return "ok", "Mở camera thành công"
 
 
 def webcam_record(seconds: int = 5) -> Tuple[str, str]:
@@ -253,8 +248,8 @@ def handle_command(cmd: Dict[str, Any]) -> Dict[str, Any]:
         return {"status": "ok", "data": shutdown_system(False)}
     if action == "restart":
         return {"status": "ok", "data": shutdown_system(True)}
-    if action == "webcam_capture":
-        status, img = webcam_capture()
+    if action == "webcam_open":
+        status, img = webcam_open()
         return {"status": status, "data": img, "encoding": "base64_jpg"}
     if action == "webcam_record":
         seconds = int(cmd.get("seconds", 5))

