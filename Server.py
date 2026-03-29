@@ -13,6 +13,7 @@ import subprocess
 import threading
 import time
 import tempfile
+import cv2
 from typing import Any, Dict, Tuple
 
 # Optional dependencies; handlers check availability.
@@ -38,7 +39,7 @@ except Exception:
 
 HOST = "0.0.0.0"
 PORT = 12345
-RECV_TIMEOUT = 10
+RECV_TIMEOUT = 60
 
 
 def send_message(conn: socket.socket, payload: Dict[str, Any]) -> None:
@@ -124,29 +125,93 @@ def webcam_open() -> Tuple[str, str]:
 
     return "ok", "Mở camera thành công"
 
+#Tách webcam start - stop
+record_state = {
+    "cap": None,
+    "out": None,
+    "thread": None,
+    "running": False,
+    "file_path": None,
+}
 
-def webcam_record(seconds: int = 5) -> Tuple[str, str]:
-    if cv2 is None:
-        return "error", "opencv-python not installed"
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        return "error", "cannot open webcam"
-    fps = 20
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    tmp_path = os.path.join(tempfile.gettempdir(), "record.mp4")
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    out = cv2.VideoWriter(tmp_path, fourcc, fps, (width, height))
-    start = time.time()
-    while time.time() - start < seconds:
+
+def _record_worker():
+    global record_state
+
+    cap = record_state["cap"]
+    out = record_state["out"]
+
+    while record_state["running"]:
         ret, frame = cap.read()
         if not ret:
             break
         out.write(frame)
-    cap.release()
-    out.release()
-    with open(tmp_path, "rb") as f:
+        time.sleep(0.01)  # giảm ăn CPU một chút
+
+    if cap is not None:
+        cap.release()
+    if out is not None:
+        out.release()
+
+    record_state["cap"] = None
+    record_state["out"] = None
+    record_state["thread"] = None
+    record_state["running"] = False
+
+
+def webcam_record_start() -> Tuple[str, str]:
+    global record_state
+
+    if cv2 is None:
+        return "error", "opencv-python not installed"
+
+    if record_state["running"]:
+        return "error", "already recording"
+
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        return "error", "cannot open webcam"
+
+    fps = 20
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    tmp_path = os.path.join(os.getcwd(), "record.mp4")
+
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    out = cv2.VideoWriter(tmp_path, fourcc, fps, (width, height))
+
+    record_state["cap"] = cap
+    record_state["out"] = out
+    record_state["running"] = True
+    record_state["file_path"] = tmp_path
+
+    t = threading.Thread(target=_record_worker, daemon=True)
+    record_state["thread"] = t
+    t.start()
+
+    return "ok", "start recording"
+
+
+def webcam_record_stop() -> Tuple[str, str]:
+    global record_state
+
+    if not record_state["running"]:
+        return "error", "not recording"
+
+    record_state["running"] = False
+
+    thread = record_state["thread"]
+    if thread is not None:
+        thread.join(timeout=2)
+
+    file_path = record_state["file_path"] or ""
+    if not file_path or not os.path.exists(file_path):
+        return "error", "record file not found"
+
+    with open(file_path, "rb") as f:
         encoded = base64.b64encode(f.read()).decode("ascii")
+
     return "ok", encoded
 
 
@@ -251,10 +316,12 @@ def handle_command(cmd: Dict[str, Any]) -> Dict[str, Any]:
     if action == "webcam_open":
         status, img = webcam_open()
         return {"status": status, "data": img, "encoding": "base64_jpg"}
-    if action == "webcam_record":
-        seconds = int(cmd.get("seconds", 5))
-        status, vid = webcam_record(seconds=seconds)
-        return {"status": status, "data": vid, "encoding": "base64_mp4"}
+    if action == "webcam_record_start":
+        status, msg = webcam_record_start()
+        return {"status": status, "data": msg}
+    if action == "webcam_record_stop":
+        status, file_path = webcam_record_stop()
+        return {"status": status, "data": file_path, "encoding": "base64_mp4"}
     return {"status": "error", "data": f"unknown action {action}"}
 
 
