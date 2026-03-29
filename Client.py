@@ -8,6 +8,7 @@ from tkinter import ttk, filedialog, simpledialog, messagebox
 from typing import Any, Dict
 
 SERVER_PORT = 12345
+CLIENT_TIMEOUT = 60
 
 
 def send_message(conn: socket.socket, payload: Dict[str, Any]) -> None:
@@ -141,12 +142,14 @@ class RemoteClientUI:
 
         try:
             conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            conn.settimeout(CLIENT_TIMEOUT) 
             conn.connect((host, SERVER_PORT))
 
             self.servers[display_name] = {
                 "conn": conn,
                 "host": host,
-                "logs": [f"Connected to {display_name}"]
+                "logs": [f"Connected to {display_name}"],
+                "online": True
             }
 
             self.server_listbox.insert("end", display_name)
@@ -240,7 +243,37 @@ class RemoteClientUI:
         if not self.current_server_key:
             messagebox.showwarning("Warning", "Please select a server first")
             return False
+        server = self.servers.get(self.current_server_key)
+        if not server:
+            messagebox.showwarning("Warning", "Server not found")
+            return False
+
+        if not server.get("online", False):  # [CHANGED]
+            messagebox.showwarning("Warning", "Selected server is offline") 
+            return False  # [CHANGED]
         return True
+    
+    # [NEW] đổi trạng thái server sang offline khi timeout / mất kết nối
+    def mark_server_disconnected(self, key: str, reason: str):
+        if key not in self.servers:
+            return
+
+        server = self.servers[key]
+
+        if not server.get("online", True):
+            return
+
+        server["online"] = False
+        server["logs"].append(f"[DISCONNECTED] {reason}")
+
+        try:
+            server["conn"].close()
+        except Exception:
+            pass
+
+        if key == self.current_server_key:
+            self.status_label.config(text=f"Selected: {key} (Offline)")
+            self.refresh_log_view()
 
     def send_action(self, payload: Dict[str, Any]):
         if not self.ensure_selected_server():
@@ -286,6 +319,10 @@ class RemoteClientUI:
                 self.log(f"Status: {status}", key)
                 self.log(f"Data: {data}", key)
                 self.log("-" * 40, key)
+
+        except socket.timeout:  # [CHANGED] bắt timeout riêng
+            self.log("Connection timeout. Server may be offline.", key)
+            self.mark_server_disconnected(key, "Timeout")
 
         except Exception as e:
             self.log(f"Connection error: {e}", key)

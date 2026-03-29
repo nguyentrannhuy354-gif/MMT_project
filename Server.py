@@ -332,9 +332,13 @@ def handle_client(conn: socket.socket, addr):
         while True:
             try:
                 cmd = recv_message(conn)
+            except socket.timeout:
+                print(f"{addr} timeout after {RECV_TIMEOUT}s")
+                break
             except (ConnectionError, json.JSONDecodeError) as exc:
                 print(f"{addr} disconnect/error: {exc}")
                 break
+
             response = handle_command(cmd)
             send_message(conn, response)
     finally:
