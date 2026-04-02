@@ -15,6 +15,8 @@ import time
 import tempfile
 import cv2
 from typing import Any, Dict, Tuple
+from features.app_control import handle_app_command
+from features.process_control import handle_process_command
 
 # Optional dependencies; handlers check availability.
 try:
@@ -289,12 +291,10 @@ def handle_command(cmd: Dict[str, Any]) -> Dict[str, Any]:
     action = cmd.get("action")
     if action == "ping":
         return {"status": "ok", "data": "pong"}
-    if action == "list_processes":
-        return {"status": "ok", "data": list_processes()}
-    if action == "kill_process":
-        return {"status": "ok", "data": kill_process(int(cmd.get("pid", -1)))}
-    if action == "start_app":
-        return {"status": "ok", "data": start_application(cmd.get("command", ""))}
+    if action in {"list_apps", "start_app", "stop_app"}:
+        return handle_app_command(action, cmd)
+    if action in {"list_processes", "kill_process"}:
+        return handle_process_command(action, cmd)
     if action == "screenshot":
         status, img = screenshot_png()
         return {"status": status, "data": img, "encoding": "base64_png"}
